@@ -15,9 +15,9 @@ except:
     HAS_COCO = False
 
 # ===== CONFIG =====
-IMAGE_DIR = r"D:\THO\Bach_Khoa\Thesis\Data\train2020\train"
-ANNOTATION_PATH = r"D:\THO\Bach_Khoa\Thesis\Data\instances_attributes_train2020.json"
-OUTPUT_DIR = r"D:\THO\Bach_Khoa\Thesis\Data\train2020\train_no_bg_blur"
+IMAGE_DIR = r"D:\THO\Bach_Khoa\Thesis\Data\val_test2020\test"
+ANNOTATION_PATH = r"D:\THO\Bach_Khoa\Thesis\Data\instances_attributes_val2020.json"
+OUTPUT_DIR = r"D:\THO\Bach_Khoa\Thesis\Data\val_test2020\val_no_bg_blur"
 
 MASK_DIR = os.path.join(OUTPUT_DIR, "masks")
 MASK_BLUR_DIR = os.path.join(OUTPUT_DIR, "masks_blur")

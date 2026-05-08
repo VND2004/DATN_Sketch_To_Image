@@ -3,8 +3,8 @@ import shutil
 import cv2
 from tqdm import tqdm
 
-input_root = r"D:\THO\Bach_Khoa\Thesis\Data\val_test2020\(3)_images_filtered"
-output_root = r"D:\THO\Bach_Khoa\Thesis\Data\val_test2020\(4)_sketch_pencil"
+input_root = r"D:\THO\Bach_Khoa\Thesis\Data\train2020\(1)_images_filtered"
+output_root = r"D:\THO\Bach_Khoa\Thesis\Data\train2020\(2)_sketch_pencil"
 
 # ====== RESET OUTPUT FOLDER ======
 if os.path.exists(output_root):
