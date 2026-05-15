@@ -81,13 +81,11 @@ model = MS2I(**generator_cfg)
 Checkpoint ưu tiên:
 
 ```text
-../../Model/Best/best.pt
-```
+../../Model/Style_v1_color_noise/eps_50_100.pt```
 
 Nếu checkpoint này không đúng phiên bản model, thử các checkpoint khác:
 
 ```text
-../../Model/Style_v1_color_noise/eps_50_100.pt
 ../../Model/Style_v1_color_noise/eps_0_50.pt
 ../../Model/3/last.pt
 ```
@@ -105,8 +103,6 @@ numpy
 torch
 torchvision
 ```
-
-Nếu dùng GPU, cài PyTorch theo CUDA phù hợp từ trang chính thức của PyTorch.
 
 ### `demo/backend/app/inference.py`
 

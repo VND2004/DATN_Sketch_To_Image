@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pillow
+numpy
+torch
+torchvision
+einops
+albumentations
+tqdm
+git+https://github.com/cjyaras/monarch-attention.git
