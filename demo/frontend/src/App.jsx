@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Brush, Eraser, RotateCcw, Sparkles } from "lucide-react";
+import { Brush, Eraser, ImageUp, RotateCcw, Sparkles } from "lucide-react";
 import "./styles.css";
 
 const API_URL = "http://127.0.0.1:8000/generate";
@@ -7,6 +7,7 @@ const COLORS = ["Black", "White", "Warm", "Cold"];
 
 export default function App() {
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [tool, setTool] = useState("brush");
   const [brushSize, setBrushSize] = useState(8);
@@ -64,6 +65,45 @@ export default function App() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setResult("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const loadSketchFile = (file) => {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        const offsetX = (canvas.width - width) / 2;
+        const offsetY = (canvas.height - height) / 2;
+
+        ctx.drawImage(image, offsetX, offsetY, width, height);
+        URL.revokeObjectURL(image.src);
+        setResult("");
+        resolve();
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(image.src);
+        reject(new Error("Could not load the selected image"));
+      };
+      image.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    await loadSketchFile(file);
+    event.target.value = "";
   };
 
   const canvasToBlob = () => {
@@ -133,6 +173,7 @@ export default function App() {
         </div>
 
         <div className="panel result-panel">
+          <div className="toolbar placeholder" aria-hidden="true" />
           {result ? <img src={result} alt="Generated result" /> : <div className="empty">Generated image</div>}
         </div>
       </section>
@@ -154,6 +195,20 @@ export default function App() {
           Seed
           <input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} />
         </label>
+
+        <div className="upload-row">
+          <label className="upload-button">
+            <ImageUp size={18} />
+            Upload sketch
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+            />
+          </label>
+          <span className="upload-hint">Chọn ảnh sketch từ máy để nạp vào khung vẽ</span>
+        </div>
 
         <button className="generate" onClick={generate} disabled={loading}>
           <Sparkles size={18} />

@@ -46,6 +46,47 @@ input {
   margin-bottom: 12px;
 }
 
+.toolbar.placeholder {
+  min-height: 38px;
+  margin-bottom: 12px;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.upload-button {
+  position: relative;
+  border: 1px dashed #94a3b8;
+  background: #f8fafc;
+  color: #17202a;
+  border-radius: 8px;
+  height: 42px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.upload-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-hint {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
 .toolbar button,
 .segmented button,
 .generate {
@@ -88,7 +129,7 @@ canvas {
 }
 
 .result-panel {
-  grid-template-rows: 1fr;
+  grid-template-rows: auto 1fr;
 }
 
 .result-panel img,

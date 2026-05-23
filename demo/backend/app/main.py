@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[3]
 # The user said: "Weight được lấy từ file `Model/Style_v1_color_noise/eps_50_100.pt`"
 # ROOT / "Model" / "Style_v1_color_noise" / "eps_50_100.pt"
 
-CHECKPOINT_PATH = ROOT / "Model" / "Style_v1_color_noise" / "eps_100_150.pt"
+#CHECKPOINT_PATH = ROOT / "Model" / "Style_v1_color_noise" / "eps_100_150.pt"
+CHECKPOINT_PATH = ROOT / "Model" / "Style_full" / "45_60.pt"
 
 app = FastAPI(title="MS2I-Net Sketch to Image Demo")
 
