@@ -64,6 +64,7 @@ class MS2IService:
         state = ckpt.get("generator_state_dict", ckpt)
         self.model.load_state_dict(state, strict=False)  # strict=False in case some keys differ slightly
         self.model.eval()
+        self.model.fuse()
 
     @torch.no_grad()
     def generate(self, sketch: Image.Image, color_label: str, seed: int | None = 7) -> bytes:

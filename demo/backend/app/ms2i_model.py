@@ -13,7 +13,59 @@ import numpy as np
 from typing import Union
 from dataclasses import dataclass, asdict
 import math
-from einops import rearrange, repeat, einsum
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_MONARCH_ATTENTION_ROOT = _PROJECT_ROOT / "monarch-attention"
+print(f"MONARCH_ATTENTION_ROOT: {_MONARCH_ATTENTION_ROOT}")
+if _MONARCH_ATTENTION_ROOT.exists() and str(_MONARCH_ATTENTION_ROOT) not in sys.path:
+    print("Adding Monarch Attention to sys.path for imports.")
+    sys.path.insert(0, str(_MONARCH_ATTENTION_ROOT))
+
+_MONARCH_IMPORT_SOURCE = None
+try:
+    from ma.monarch_attention import MonarchAttention  # pyright: ignore[reportMissingImports]
+    _MONARCH_IMPORT_SOURCE = "ma.monarch_attention"
+except ImportError:
+    try:
+        from monarch_attn import MonarchAttention  # pyright: ignore[reportMissingImports]
+        _MONARCH_IMPORT_SOURCE = "monarch_attn"
+    except ImportError:
+        raise ImportError(
+            "Unable to import MonarchAttention from the bundled monarch-attention repo. "
+            "Verify that monarch-attention/ma/__init__.py exists and that the repo root is on sys.path."
+        )
+
+# Log which MonarchAttention implementation was used
+import logging
+_logger = logging.getLogger(__name__)
+if not _logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+    _logger.addHandler(_handler)
+_logger.info("MonarchAttention import source: %s", _MONARCH_IMPORT_SOURCE)
+
+
+def rearrange(x, pattern, **axes_lengths):
+    if pattern == 'b c h w -> b (h w) c':
+        return x.permute(0, 2, 3, 1).reshape(x.shape[0], x.shape[2] * x.shape[3], x.shape[1])
+    if pattern == 'b (h w) c -> b c h w':
+        h = axes_lengths['h']
+        w = axes_lengths['w']
+        return x.reshape(x.shape[0], h, w, x.shape[2]).permute(0, 3, 1, 2)
+    if pattern == 'b (head c) h w -> b head c (h w)':
+        head = axes_lengths['head']
+        b, channels, h, w = x.shape
+        c = channels // head
+        return x.reshape(b, head, c, h * w)
+    if pattern == 'b head c (h w) -> b (head c) h w':
+        head = axes_lengths['head']
+        h = axes_lengths['h']
+        w = axes_lengths['w']
+        b, _, c, _ = x.shape
+        return x.reshape(b, head * c, h, w)
+    raise NotImplementedError(f"Unsupported rearrange pattern: {pattern}")
+
 
 def count_params(model):
     """ Count model trainable parameters """
@@ -39,10 +91,17 @@ from typing import Dict, List, Tuple, Optional
 # Third-party imports
 import numpy as np
 import torch
-import albumentations as A
+try:
+    import albumentations as A  # pyright: ignore[reportMissingImports]
+except ImportError:
+    A = None
 import cv2
 from PIL import Image, ImageOps
-from tqdm.auto import tqdm
+try:
+    from tqdm.auto import tqdm
+except ImportError:
+    def tqdm(iterable, **kwargs):
+        return iterable
 
 # PyTorch data utilities
 from torch.utils.data import Dataset, DataLoader
@@ -377,7 +436,10 @@ def build_gan_dataloader(
     )
 
 
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 import random
 from pathlib import Path
 
@@ -405,10 +467,11 @@ def preprocess_preview(path: str, target_size: int = 256):
 
 def find_sketch_by_method(row: dict, method: str):
     """Find sketch image path for a specific method using pipeline config roots."""
-    if "PIPE_CFG" not in globals():
+    pipe_cfg = globals().get("PIPE_CFG")
+    if pipe_cfg is None:
         return None
 
-    root = PIPE_CFG.sketch_roots.get(method)
+    root = pipe_cfg.sketch_roots.get(method)
     if root is None:
         return None
 
@@ -434,7 +497,11 @@ def tensor_to_uint8_img(t: torch.Tensor) -> np.ndarray:
 
 def visualize_full_samples(num_samples: int = 3, image_size: int = 256):
     """Visualize full sample information, including all sketch methods and augment result."""
-    if "gan_rows" not in globals() or len(gan_rows) == 0:
+    if plt is None:
+        raise ImportError("matplotlib is required for visualization helpers, but it is not installed.")
+
+    gan_rows = globals().get("gan_rows", [])
+    if len(gan_rows) == 0:
         print("'gan_rows' chưa có dữ liệu. Hãy chạy Cell 15 trước.")
         return
 
@@ -445,7 +512,8 @@ def visualize_full_samples(num_samples: int = 3, image_size: int = 256):
     sample_rows = random.sample(gan_rows, k=min(num_samples, len(gan_rows)))
 
     # Methods come from current config to guarantee complete per-method view.
-    method_list = list(PIPE_CFG.sketch_roots.keys()) if "PIPE_CFG" in globals() else []
+    pipe_cfg = globals().get("PIPE_CFG")
+    method_list = list(pipe_cfg.sketch_roots.keys()) if pipe_cfg is not None else []
 
     # Build one augmented dataset instance to preview synchronized spatial augmentation.
     preview_dataset = SketchToRealGANDataset(
@@ -1000,12 +1068,6 @@ class RepConv7(nn.Module):
 # print(f"After fusion: {count_params(conv)} parameters")
 # print(torch.allclose(out1, out2, atol=1e-5))
 
-class MonarchAttention(nn.Module):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-    def forward(self, *args, **kwargs):
-        pass
-
 @dataclass
 class RepAttnConfig:
     dim: int
@@ -1198,15 +1260,11 @@ class StyledRefinement(nn.Module):
         super().__init__()
         self.norm = LayerNorm(channels, 'WithBias')
         self.modconv = ModulatedConv2d(channels, channels, kernel_size=3, style_dim=style_dim)
-        self.noise_strength = nn.Parameter(torch.zeros(1))
         self.act = nn.GELU()
         self.strength = float(strength)
 
-    def forward(self, x, style, noise=None):
+    def forward(self, x, style):
         residual = self.modconv(self.norm(x), style)
-        if noise is None:
-            noise = torch.randn(x.size(0), 1, x.size(2), x.size(3), device=x.device, dtype=x.dtype)
-        residual = residual + self.noise_strength.view(1, 1, 1, 1) * noise
         return x + self.strength * self.act(residual)
 
 

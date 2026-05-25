@@ -1,3 +1,4 @@
+import os
 from io import BytesIO
 from pathlib import Path
 
@@ -9,19 +10,21 @@ from .inference import MS2IService, png_bytes_to_data_url
 
 
 ROOT = Path(__file__).resolve().parents[3]
-# Wait, let me check the checkout path from the user's dir.
-# The user said: "Weight được lấy từ file `Model/Style_v1_color_noise/eps_50_100.pt`"
-# ROOT / "Model" / "Style_v1_color_noise" / "eps_50_100.pt"
+DEFAULT_CHECKPOINT_PATH = ROOT / "Model" / "Style_v2_color" / "15_30.pt"
+CHECKPOINT_PATH = Path(os.getenv("MS2I_CHECKPOINT_PATH", str(DEFAULT_CHECKPOINT_PATH)))
+print(f"Using checkpoint: {CHECKPOINT_PATH}")
 
-#CHECKPOINT_PATH = ROOT / "Model" / "Style_v1_color_noise" / "eps_100_150.pt"
-CHECKPOINT_PATH = ROOT / "Model" / "Style_full" / "45_60.pt"
+if not CHECKPOINT_PATH.exists():
+    raise FileNotFoundError(
+        f"Checkpoint not found: {CHECKPOINT_PATH}. Set MS2I_CHECKPOINT_PATH to a valid .pt file."
+    )
 
 app = FastAPI(title="MS2I-Net Sketch to Image Demo")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], # Allow all for demo
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
