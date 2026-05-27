@@ -13,8 +13,14 @@ export default function App() {
   const [brushSize, setBrushSize] = useState(8);
   const [colorLabel, setColorLabel] = useState("Warm");
   const [seed, setSeed] = useState(7);
+  const [refinedSketch, setRefinedSketch] = useState("");
   const [result, setResult] = useState("");
+  const [previewMode, setPreviewMode] = useState("result");
   const [loading, setLoading] = useState(false);
+
+  const previewImage = previewMode === "refined" ? refinedSketch : result;
+  const previewTitle = previewMode === "refined" ? "Sketch đã hoàn thiện nét" : "Ảnh thật";
+  const previewAlt = previewMode === "refined" ? "Refined sketch" : "Generated realistic image";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -64,7 +70,9 @@ export default function App() {
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    setRefinedSketch("");
     setResult("");
+    setPreviewMode("result");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -87,7 +95,9 @@ export default function App() {
 
         ctx.drawImage(image, offsetX, offsetY, width, height);
         URL.revokeObjectURL(image.src);
+        setRefinedSketch("");
         setResult("");
+        setPreviewMode("result");
         resolve();
       };
       image.onerror = () => {
@@ -129,7 +139,9 @@ export default function App() {
         throw new Error(`Generate failed: ${response.status}`);
       }
       const data = await response.json();
+      setRefinedSketch(data.refined_sketch);
       setResult(data.image);
+      setPreviewMode("result");
     } finally {
       setLoading(false);
     }
@@ -174,7 +186,14 @@ export default function App() {
 
         <div className="panel result-panel">
           <div className="toolbar placeholder" aria-hidden="true" />
-          {result ? <img src={result} alt="Generated result" /> : <div className="empty">Generated image</div>}
+          {previewImage ? (
+            <figure className="single-preview">
+              <img src={previewImage} alt={previewAlt} />
+              <figcaption>{previewTitle}</figcaption>
+            </figure>
+          ) : (
+            <div className="empty">Ảnh thật sẽ hiển thị ở đây</div>
+          )}
         </div>
       </section>
 
@@ -209,6 +228,14 @@ export default function App() {
           </label>
           <span className="upload-hint">Chọn ảnh sketch từ máy để nạp vào khung vẽ</span>
         </div>
+
+        <button
+          className="preview-toggle"
+          onClick={() => setPreviewMode((current) => (current === "result" ? "refined" : "result"))}
+          disabled={!refinedSketch && !result}
+        >
+          {previewMode === "refined" ? "Xem ảnh thật" : "Xem sketch hoàn thiện"}
+        </button>
 
         <button className="generate" onClick={generate} disabled={loading}>
           <Sparkles size={18} />

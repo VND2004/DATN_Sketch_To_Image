@@ -66,6 +66,7 @@ input {
   color: #17202a;
   border-radius: 8px;
   height: 42px;
+  margin-top: 10px;
   padding: 0 14px;
   display: inline-flex;
   align-items: center;
@@ -85,6 +86,26 @@ input {
 .upload-hint {
   color: #64748b;
   font-size: 0.95rem;
+}
+
+.preview-toggle {
+  border: 1px solid #c7d0da;
+  background: #f8fafc;
+  color: #17202a;
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.preview-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .toolbar button,
@@ -132,7 +153,15 @@ canvas {
   grid-template-rows: auto 1fr;
 }
 
-.result-panel img,
+.single-preview {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+}
+
+.single-preview img,
 .empty {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -141,8 +170,14 @@ canvas {
   background: #eef2f6;
 }
 
-.result-panel img {
+.single-preview img {
   object-fit: contain;
+}
+
+.single-preview figcaption {
+  font-size: 0.95rem;
+  color: #526273;
+  text-align: center;
 }
 
 .empty {
@@ -207,6 +242,10 @@ canvas {
 
   .generate {
     margin-left: 0;
+    width: 100%;
+  }
+
+  .preview-toggle {
     width: 100%;
   }
 }
