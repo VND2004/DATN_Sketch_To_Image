@@ -15,12 +15,13 @@ export default function App() {
   const [seed, setSeed] = useState(7);
   const [refinedSketch, setRefinedSketch] = useState("");
   const [result, setResult] = useState("");
+  const [resultRaw, setResultRaw] = useState("");
   const [previewMode, setPreviewMode] = useState("result");
   const [loading, setLoading] = useState(false);
 
-  const previewImage = previewMode === "refined" ? refinedSketch : result;
-  const previewTitle = previewMode === "refined" ? "Sketch đã hoàn thiện nét" : "Ảnh thật";
-  const previewAlt = previewMode === "refined" ? "Refined sketch" : "Generated realistic image";
+  const previewImage = previewMode === "refined" ? refinedSketch : previewMode === "raw" ? resultRaw : result;
+  const previewTitle = previewMode === "refined" ? "Sketch đã hoàn thiện nét" : previewMode === "raw" ? "Ảnh trước Super Resolution" : "Ảnh thật";
+  const previewAlt = previewMode === "refined" ? "Refined sketch" : previewMode === "raw" ? "Generated image (pre-SR)" : "Generated realistic image";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -72,6 +73,7 @@ export default function App() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setRefinedSketch("");
     setResult("");
+    setResultRaw("");
     setPreviewMode("result");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -141,6 +143,7 @@ export default function App() {
       const data = await response.json();
       setRefinedSketch(data.refined_sketch);
       setResult(data.image);
+      setResultRaw(data.image_raw);
       setPreviewMode("result");
     } finally {
       setLoading(false);
@@ -232,9 +235,17 @@ export default function App() {
         <button
           className="preview-toggle"
           onClick={() => setPreviewMode((current) => (current === "result" ? "refined" : "result"))}
-          disabled={!refinedSketch && !result}
+          disabled={!refinedSketch && !result && !resultRaw}
         >
           {previewMode === "refined" ? "Xem ảnh thật" : "Xem sketch hoàn thiện"}
+        </button>
+
+        <button
+          className="preview-toggle"
+          onClick={() => setPreviewMode((current) => (current === "raw" ? "result" : "raw"))}
+          disabled={!resultRaw && !result}
+        >
+          {previewMode === "raw" ? "Xem ảnh sau SR" : "Xem trước trước SR"}
         </button>
 
         <button className="generate" onClick={generate} disabled={loading}>

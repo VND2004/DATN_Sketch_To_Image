@@ -1,11 +1,14 @@
-from pathlib import Path
 from io import BytesIO
 import base64
+import os
 
+import cv2
 import numpy as np
 import torch
 import torch.nn as nn
 from PIL import Image, ImageOps
+from basicsr.archs.rrdbnet_arch import RRDBNet
+from realesrgan import RealESRGANer
 
 from .ms2i_model import MS2I, model_cfg
 from .sketch_fixer_model import load_light_unet_checkpoint
@@ -85,8 +88,36 @@ def tensor_to_png_bytes(tensor: torch.Tensor) -> bytes:
     return buffer.getvalue()
 
 
+def tensor_to_pil_image(tensor: torch.Tensor) -> Image.Image:
+    image = (tensor.detach().cpu().clamp(-1, 1) + 1.0) / 2.0
+    image = (image.permute(1, 2, 0).numpy() * 255.0).round().astype(np.uint8)
+    return Image.fromarray(image)
+
+
+def pil_to_bgr_array(image: Image.Image) -> np.ndarray:
+    return cv2.cvtColor(np.asarray(image.convert("RGB")), cv2.COLOR_RGB2BGR)
+
+
+def bgr_array_to_pil(image: np.ndarray) -> Image.Image:
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(rgb_image)
+
+
+def png_bytes_from_pil(image: Image.Image) -> bytes:
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 class MS2IService:
-    def __init__(self, checkpoint_path: str, fixer_checkpoint_path: str | None = None, fixer_strength: float = 0.7):
+    def __init__(
+        self,
+        checkpoint_path: str,
+        fixer_checkpoint_path: str | None = None,
+        fixer_strength: float = 0.7,
+        sr_checkpoint_path: str | None = None,
+        sr_tile: int = 0,
+    ):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.fixer_strength = float(fixer_strength)
         generator_cfg = dict(model_cfg)
@@ -102,6 +133,34 @@ class MS2IService:
         self.model.load_state_dict(state, strict=False)  # strict=False in case some keys differ slightly
         self.model.eval()
         self.model.fuse()
+
+        self.sr_upsampler = None
+        if sr_checkpoint_path:
+            self.sr_upsampler = self._load_super_resolution_model(sr_checkpoint_path, sr_tile)
+
+    def _load_super_resolution_model(self, checkpoint_path: str, sr_tile: int) -> RealESRGANer:
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(
+                f"Super-resolution checkpoint not found: {checkpoint_path}. Set MS2I_SR_CHECKPOINT_PATH to a valid Real-ESRGAN x4plus .pth file."
+            )
+
+        sr_model = RRDBNet(
+            num_in_ch=3,
+            num_out_ch=3,
+            num_feat=64,
+            num_block=23,
+            num_grow_ch=32,
+            scale=4,
+        )
+        return RealESRGANer(
+            scale=4,
+            model_path=checkpoint_path,
+            model=sr_model,
+            tile=int(sr_tile),
+            tile_pad=10,
+            pre_pad=0,
+            half=self.device.type == "cuda",
+        )
 
     @torch.no_grad()
     def refine_sketch(self, sketch: Image.Image) -> Image.Image:
@@ -134,9 +193,15 @@ class MS2IService:
         z = torch.randn(1, model_cfg["z_dim"], generator=gen, device=self.device)
 
         fake = self.model(sketch_tensor, color_tensor, z)
+        generated_image = tensor_to_pil_image(fake[0])
+        sr_image = generated_image
+        if self.sr_upsampler is not None:
+            sr_bgr, _ = self.sr_upsampler.enhance(pil_to_bgr_array(generated_image), outscale=4)
+            sr_image = bgr_array_to_pil(sr_bgr)
         return {
             "refined_sketch": tensor_to_png_bytes(image_to_tensor(refined_sketch)),
-            "generated_image": tensor_to_png_bytes(fake[0]),
+            "generated_image_raw": tensor_to_png_bytes(fake[0]),
+            "generated_image": png_bytes_from_pil(sr_image),
         }
 
 

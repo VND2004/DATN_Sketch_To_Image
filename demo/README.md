@@ -6,10 +6,12 @@ Tài liệu này hướng dẫn tạo demo web để:
 - Chọn gam màu: `Black`, `White`, `Warm`, `Cold`.
 - Bấm nút generate để gọi model MS2I-Net.
 - Hiển thị ảnh thật sinh ra ở khung bên cạnh.
+- Ảnh thật sẽ đi qua Real-ESRGAN x4plus trước khi hiển thị.
 
 Pipeline bám theo model notebook `notebook/MS2I-Net-add-attribute.ipynb`:
 
 - Weight được lấy từ file `Model/Style_v1_color_noise/eps_50_100.pt`
+- Real-ESRGAN sẽ dùng weight có sẵn tại `Model/RealESRGAN/Real-ESRGAN-x4plus.pth`
 
 ## 1. Kiến trúc demo đề xuất
 
@@ -102,7 +104,18 @@ pillow
 numpy
 torch
 torchvision
+realesrgan
+basicsr
+opencv-python-headless
 ```
+
+Nếu chưa có weight Real-ESRGAN, tải file x4plus và đặt vào:
+
+```text
+Model/RealESRGAN/Real-ESRGAN-x4plus.pth
+```
+
+Hoặc set biến môi trường `MS2I_SR_CHECKPOINT_PATH` trỏ tới file `.pth` bạn đang dùng.
 
 ### `demo/backend/app/inference.py`
 
