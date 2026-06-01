@@ -1,6 +1,11 @@
 from io import BytesIO
 import base64
 import os
+import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 import cv2
 import numpy as np
@@ -120,22 +125,37 @@ class MS2IService:
     ):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.fixer_strength = float(fixer_strength)
+        ckpt = torch.load(checkpoint_path, map_location=self.device)
+        state = ckpt.get("generator_state_dict", ckpt)
+        
+        # Determine if the checkpoint is already fused (no branch weights like conv_3x3)
+        is_fused = not any("conv_3x3.weight" in k for k in state.keys())
+        logger.info(f"Loaded MS2I checkpoint from {checkpoint_path} | Detected as {'FUSED' if is_fused else 'UNFUSED'} (device: {self.device})")
+
         generator_cfg = dict(model_cfg)
         generator_cfg["last_act"] = nn.Tanh()
+        if is_fused:
+            generator_cfg["deploy"] = True
+
         self.model = MS2I(**generator_cfg).to(self.device)
 
         self.fixer = None
         if fixer_checkpoint_path:
             self.fixer = load_light_unet_checkpoint(fixer_checkpoint_path, self.device)
 
-        ckpt = torch.load(checkpoint_path, map_location=self.device)
-        state = ckpt.get("generator_state_dict", ckpt)
         self.model.load_state_dict(state, strict=False)  # strict=False in case some keys differ slightly
         self.model.eval()
-        self.model.fuse()
+        
+        if not is_fused:
+            logger.info("Fusing MS2I model branches...")
+            self.model.fuse()
+            logger.info("Fusion complete.")
+        else:
+            logger.info("Model is already fused, skipping fusion step.")
 
         self.sr_upsampler = None
         if sr_checkpoint_path:
+            logger.info(f"Loading RealESRGAN from {sr_checkpoint_path}...")
             self.sr_upsampler = self._load_super_resolution_model(sr_checkpoint_path, sr_tile)
 
     def _load_super_resolution_model(self, checkpoint_path: str, sr_tile: int) -> RealESRGANer:
@@ -179,7 +199,14 @@ class MS2IService:
 
     @torch.no_grad()
     def generate(self, sketch: Image.Image, color_label: str, seed: int | None = 7) -> dict[str, bytes]:
+        logger.info("--- Starting inference generation ---")
+        logger.info(f"Parameters: color_label='{color_label}', seed={seed}, fixer_strength={self.fixer_strength}")
+        
+        t0 = time.time()
         refined_sketch = self.refine_sketch(sketch)
+        t1 = time.time()
+        logger.info(f"[Timing] Sketch refinement: {t1 - t0:.3f}s")
+        
         sketch_tensor = image_to_tensor(refined_sketch).unsqueeze(0).to(self.device)
         color_tensor = torch.tensor(
             [color_to_one_hot(color_label)],
@@ -192,12 +219,22 @@ class MS2IService:
             gen.manual_seed(int(seed))
         z = torch.randn(1, model_cfg["z_dim"], generator=gen, device=self.device)
 
+        t2 = time.time()
         fake = self.model(sketch_tensor, color_tensor, z)
+        t3 = time.time()
+        logger.info(f"[Timing] MS2I generation: {t3 - t2:.3f}s")
+        
         generated_image = tensor_to_pil_image(fake[0])
         sr_image = generated_image
         if self.sr_upsampler is not None:
+            t4 = time.time()
             sr_bgr, _ = self.sr_upsampler.enhance(pil_to_bgr_array(generated_image), outscale=4)
             sr_image = bgr_array_to_pil(sr_bgr)
+            t5 = time.time()
+            logger.info(f"[Timing] RealESRGAN upsampling: {t5 - t4:.3f}s")
+            
+        logger.info(f"--- Inference complete (Total: {time.time() - t0:.3f}s) ---")
+        
         return {
             "refined_sketch": tensor_to_png_bytes(image_to_tensor(refined_sketch)),
             "generated_image_raw": tensor_to_png_bytes(fake[0]),

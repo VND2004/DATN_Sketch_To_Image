@@ -14,7 +14,7 @@ tqdm==4.67.3
 
 git+https://github.com/cjyaras/monarch-attention.git
 
-#realesrgan==0.3.0
-#basicsr==1.4.2
+#realesrgan==0.3.0 pip install realesrgan==0.3.0 --no-deps
+#basicsr==1.4.2 pip install --no-build-isolation basicsr==1.4.2
 
 opencv-python-headless==4.10.0.84
