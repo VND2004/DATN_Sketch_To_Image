@@ -4,17 +4,17 @@ import "./styles.css";
 
 const API_URL = "http://127.0.0.1:8000/generate";
 const COLORS = [
-  "Black",
-  "White",
-  "Gray",
-  "Red",
-  "Orange",
-  "Yellow",
-  "Green",
-  "Blue",
-  "Purple",
-  "Pink",
-  "Brown",
+  { label: "Black", color: "#000000" },
+  { label: "White", color: "#FFFFFF" },
+  { label: "Gray", color: "#9CA3AF" },
+  { label: "Red", color: "#EF4444" },
+  { label: "Orange", color: "#F97316" },
+  { label: "Yellow", color: "#F59E0B" },
+  { label: "Green", color: "#10B981" },
+  { label: "Blue", color: "#3B82F6" },
+  { label: "Purple", color: "#8B5CF6" },
+  { label: "Pink", color: "#EC4899" },
+  { label: "Brown", color: "#8B4513" },
 ];
 
 export default function App() {
@@ -213,14 +213,18 @@ export default function App() {
       </section>
 
       <section className="controls">
-        <div className="segmented">
+        <div className="color-grid" role="list" aria-label="Color selection">
           {COLORS.map((item) => (
             <button
-              key={item}
-              className={colorLabel === item ? "active" : ""}
-              onClick={() => setColorLabel(item)}
+              key={item.label}
+              role="listitem"
+              className={"color-button " + (colorLabel === item.label ? "active" : "")}
+              onClick={() => setColorLabel(item.label)}
+              title={item.label}
+              aria-label={item.label}
+              aria-pressed={colorLabel === item.label}
             >
-              {item}
+              <span className="swatch" style={{ background: item.color }} aria-hidden="true" />
             </button>
           ))}
         </div>
