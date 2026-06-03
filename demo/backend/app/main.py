@@ -10,7 +10,7 @@ from .inference import MS2IService, png_bytes_to_data_url
 
 
 ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_CHECKPOINT_PATH = ROOT / "Model" / "Style_v2_color" / "30_45.pt"
+DEFAULT_CHECKPOINT_PATH = ROOT / "Model" / "Style_v3_11_color" / "30_45.pt"
 DEFAULT_FIXER_CHECKPOINT_PATH = ROOT / "Model" / "sketch_fixer" / "light_unet_sketch_fixer_v1.pth"
 DEFAULT_SR_CHECKPOINT_PATH = ROOT / "Model" / "RealESRGAN" / "Real-ESRGAN-x4plus.pth"
 CHECKPOINT_PATH = Path(os.getenv("MS2I_CHECKPOINT_PATH", str(DEFAULT_CHECKPOINT_PATH)))
@@ -72,7 +72,7 @@ def health():
 @app.post("/generate")
 async def generate(
     sketch: UploadFile = File(...),
-    color_label: str = Form("Warm"),
+    color_label: str = Form("White"),
     seed: int = Form(7),
 ):
     payload = await sketch.read()

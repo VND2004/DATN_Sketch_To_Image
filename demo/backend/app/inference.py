@@ -19,7 +19,19 @@ from .ms2i_model import MS2I, model_cfg
 from .sketch_fixer_model import load_light_unet_checkpoint
 
 
-COLOR_LABELS = ("Black", "White", "Warm", "Cold")
+COLOR_LABELS = (
+    "Black",
+    "White",
+    "Gray",
+    "Red",
+    "Orange",
+    "Yellow",
+    "Green",
+    "Blue",
+    "Purple",
+    "Pink",
+    "Brown",
+)
 COLOR_TO_INDEX = {label.lower(): idx for idx, label in enumerate(COLOR_LABELS)}
 
 

@@ -46,6 +46,22 @@ if not _logger.handlers:
 _logger.info("MonarchAttention import source: %s", _MONARCH_IMPORT_SOURCE)
 
 
+COLOR_LABELS = (
+    "Black",
+    "White",
+    "Gray",
+    "Red",
+    "Orange",
+    "Yellow",
+    "Green",
+    "Blue",
+    "Purple",
+    "Pink",
+    "Brown",
+)
+COLOR_TO_INDEX = {label.lower(): idx for idx, label in enumerate(COLOR_LABELS)}
+
+
 def rearrange(x, pattern, **axes_lengths):
     if pattern == 'b c h w -> b (h w) c':
         return x.permute(0, 2, 3, 1).reshape(x.shape[0], x.shape[2] * x.shape[3], x.shape[1])
@@ -726,7 +742,7 @@ class Block(nn.Module):
 class StyleMapping(nn.Module):
     """Map explicit color gamut and stochastic z into a compact style latent."""
 
-    def __init__(self, color_dim=4, z_dim=128, style_dim=256, hidden_dim=256, num_layers=3):
+    def __init__(self, color_dim=11, z_dim=128, style_dim=256, hidden_dim=256, num_layers=3):
         super().__init__()
         layers = []
         in_dim = color_dim + z_dim
@@ -820,7 +836,7 @@ class MS2I(nn.Module):
         num_heads=[1, 2, 2, 4],
         bias=True,
         last_act=None,
-        color_dim=4,
+        color_dim=11,
         z_dim=128,
         style_dim=256,
         style_strengths=None,
@@ -945,7 +961,7 @@ model_cfg = {
     "bias": True,
     "last_act": None,
     "deploy": False,
-    "color_dim": 4,
+    "color_dim": 11,
     "z_dim": 128,
     "style_dim": 256,
     "style_strengths": [0.15, 0.35, 0.65],

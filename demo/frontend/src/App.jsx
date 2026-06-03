@@ -3,7 +3,19 @@ import { Brush, Eraser, ImageUp, RotateCcw, Sparkles } from "lucide-react";
 import "./styles.css";
 
 const API_URL = "http://127.0.0.1:8000/generate";
-const COLORS = ["Black", "White", "Warm", "Cold"];
+const COLORS = [
+  "Black",
+  "White",
+  "Gray",
+  "Red",
+  "Orange",
+  "Yellow",
+  "Green",
+  "Blue",
+  "Purple",
+  "Pink",
+  "Brown",
+];
 
 export default function App() {
   const canvasRef = useRef(null);
@@ -11,7 +23,7 @@ export default function App() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [tool, setTool] = useState("brush");
   const [brushSize, setBrushSize] = useState(8);
-  const [colorLabel, setColorLabel] = useState("Warm");
+  const [colorLabel, setColorLabel] = useState("White");
   const [seed, setSeed] = useState(7);
   const [refinedSketch, setRefinedSketch] = useState("");
   const [result, setResult] = useState("");
