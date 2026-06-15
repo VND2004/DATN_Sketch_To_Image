@@ -626,10 +626,11 @@ class RepAttn(nn.Module):
             pad_type=pad_type,
             impl=impl
         )
-        if deploy:
-            self.attn_fn = self.monarch_attn
-        else:
-            self.attn_fn = self.common_attn
+        # BUG FIX: Luôn sử dụng common_attn (Scaled Dot-Product) giống hệt lúc train.
+        # Không thể tuỳ tiện chuyển sang monarch_attn lúc deploy vì sẽ gây sai lệch nghiêm trọng
+        # feature map (dẫn đến lỗi loang màu).
+        #self.attn_fn = self.monarch_attn if deploy else self.common_attn
+        self.attn_fn = self.common_attn
         self.proj = nn.Conv2d(dim, dim, kernel_size=1)
         self.deploy = deploy
 
@@ -644,7 +645,10 @@ class RepAttn(nn.Module):
     @torch.no_grad()
     def fuse(self):
         if not self.deploy:
-            self.attn_fn = self.monarch_attn
+            # BUG FIX: Xóa bỏ việc gán self.attn_fn = self.monarch_attn
+            # monarch_attn không phải là một phép biển đổi tuyến tính tương đương (re-parameterization)
+            # như RepConv, do đó không thể "fuse" kiểu drop-in replacement được.
+            #self.attn_fn = self.monarch_attn
             self.deploy = True
 
     def forward(self, x):

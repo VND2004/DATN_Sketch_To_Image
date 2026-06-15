@@ -283,6 +283,25 @@ canvas {
   padding: 0 10px;
 }
 
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #405060;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.95rem;
+  height: 38px;
+  padding: 0 4px;
+}
+
+.toggle-switch input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #166534;
+}
+
 .generate {
   margin-left: auto;
   background: #166534;

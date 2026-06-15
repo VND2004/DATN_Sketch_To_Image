@@ -142,7 +142,13 @@ class MS2IService:
         
         # Determine if the checkpoint is already fused (no branch weights like conv_3x3)
         is_fused = not any("conv_3x3.weight" in k for k in state.keys())
-        logger.info(f"Loaded MS2I checkpoint from {checkpoint_path} | Detected as {'FUSED' if is_fused else 'UNFUSED'} (device: {self.device})")
+        logger.info(
+            "Loaded MS2I checkpoint from %s | keys in checkpoint: %d | Detected as %s (device: %s)",
+            checkpoint_path,
+            len(state),
+            "FUSED" if is_fused else "UNFUSED",
+            self.device,
+        )
 
         generator_cfg = dict(model_cfg)
         generator_cfg["last_act"] = nn.Tanh()
@@ -155,7 +161,22 @@ class MS2IService:
         if fixer_checkpoint_path:
             self.fixer = load_light_unet_checkpoint(fixer_checkpoint_path, self.device)
 
-        self.model.load_state_dict(state, strict=False)  # strict=False in case some keys differ slightly
+        # Load weights and log any mismatches explicitly so problems are not silently ignored.
+        load_result = self.model.load_state_dict(state, strict=False)
+        if load_result.missing_keys:
+            logger.warning(
+                "MS2I load_state_dict: %d MISSING keys (these layers keep random init weights!): %s",
+                len(load_result.missing_keys),
+                load_result.missing_keys,
+            ) 
+        if load_result.unexpected_keys:
+            logger.warning(
+                "MS2I load_state_dict: %d UNEXPECTED keys (ignored from checkpoint): %s",
+                len(load_result.unexpected_keys),
+                load_result.unexpected_keys,
+            )
+        if not load_result.missing_keys and not load_result.unexpected_keys:
+            logger.info("MS2I load_state_dict: all keys matched perfectly.")
         self.model.eval()
         
         if not is_fused:
@@ -195,9 +216,10 @@ class MS2IService:
         )
 
     @torch.no_grad()
-    def refine_sketch(self, sketch: Image.Image) -> Image.Image:
-        if self.fixer is None:
-            return sketch.convert("RGB")
+    def refine_sketch(self, sketch: Image.Image, use_sketch_fixer: bool = True) -> Image.Image:
+        if self.fixer is None or not use_sketch_fixer:
+            gray_sketch = smart_pad_and_resize_gray(sketch.convert("L"), 256)
+            return Image.merge("RGB", (gray_sketch, gray_sketch, gray_sketch))
 
         sketch_tensor = grayscale_to_tensor(sketch).unsqueeze(0).to(self.device)
         logits = self.fixer(sketch_tensor)
@@ -210,12 +232,12 @@ class MS2IService:
         return Image.merge("RGB", (refined_image, refined_image, refined_image))
 
     @torch.no_grad()
-    def generate(self, sketch: Image.Image, color_label: str, seed: int | None = 7) -> dict[str, bytes]:
+    def generate(self, sketch: Image.Image, color_label: str, seed: int | None = 7, use_sketch_fixer: bool = True) -> dict[str, bytes]:
         logger.info("--- Starting inference generation ---")
-        logger.info(f"Parameters: color_label='{color_label}', seed={seed}, fixer_strength={self.fixer_strength}")
+        logger.info(f"Parameters: color_label='{color_label}', seed={seed}, fixer_strength={self.fixer_strength}, use_sketch_fixer={use_sketch_fixer}")
         
         t0 = time.time()
-        refined_sketch = self.refine_sketch(sketch)
+        refined_sketch = self.refine_sketch(sketch, use_sketch_fixer=use_sketch_fixer)
         t1 = time.time()
         logger.info(f"[Timing] Sketch refinement: {t1 - t0:.3f}s")
         
@@ -226,16 +248,15 @@ class MS2IService:
             device=self.device,
         )
 
-        gen = torch.Generator(device=self.device)
-        if seed is not None:
-            gen.manual_seed(int(seed))
-        z = torch.randn(1, model_cfg["z_dim"], generator=gen, device=self.device)
+        # z is set to all zeros during inference to prevent color distortion and match training behavior.
+        # The seed parameter is kept in the signature for compatibility but not used for generating z.
+        z = torch.zeros(1, model_cfg["z_dim"], dtype=torch.float32, device=self.device)
 
         t2 = time.time()
         fake = self.model(sketch_tensor, color_tensor, z)
         t3 = time.time()
         logger.info(f"[Timing] MS2I generation: {t3 - t2:.3f}s")
-        
+
         generated_image = tensor_to_pil_image(fake[0])
         sr_image = generated_image
         if self.sr_upsampler is not None:

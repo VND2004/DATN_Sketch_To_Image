@@ -196,10 +196,8 @@ class MS2IService:
             device=self.device,
         )
 
-        gen = torch.Generator(device=self.device)
-        if seed is not None:
-            gen.manual_seed(int(seed))
-        z = torch.randn(1, model_cfg["z_dim"], generator=gen, device=self.device)
+        # z is set to all zeros during inference to prevent color distortion
+        z = torch.zeros(1, model_cfg["z_dim"], dtype=torch.float32, device=self.device)
 
         fake = self.model(sketch_tensor, color_tensor, z)
         return tensor_to_png_bytes(fake[0])

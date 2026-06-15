@@ -25,6 +25,7 @@ export default function App() {
   const [brushSize, setBrushSize] = useState(8);
   const [colorLabel, setColorLabel] = useState("White");
   const [seed, setSeed] = useState(7);
+  const [useSketchFixer, setUseSketchFixer] = useState(true);
   const [refinedSketch, setRefinedSketch] = useState("");
   const [result, setResult] = useState("");
   const [resultRaw, setResultRaw] = useState("");
@@ -144,6 +145,7 @@ export default function App() {
       formData.append("sketch", blob, "sketch.png");
       formData.append("color_label", colorLabel);
       formData.append("seed", String(seed));
+      formData.append("use_sketch_fixer", String(useSketchFixer));
 
       const response = await fetch(API_URL, {
         method: "POST",
@@ -232,6 +234,15 @@ export default function App() {
         <label className="seed">
           Seed
           <input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} />
+        </label>
+
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={useSketchFixer}
+            onChange={(event) => setUseSketchFixer(event.target.checked)}
+          />
+          Tiền xử lý nét vẽ
         </label>
 
         <div className="upload-row">
