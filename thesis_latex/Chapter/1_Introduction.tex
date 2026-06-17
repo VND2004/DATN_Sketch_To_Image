@@ -1,63 +1,61 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
 
-Lưu ý: Mẫu ĐATN này được thiết kế phù hợp với đồ án tốt nghiệp theo hướng nghiên cứu. Mẫu đề tài này là gợi ý tham khảo. Tuỳ từng đề tài, cấu trúc có thể thay đổi ít nhiều. Sinh viên cần tham khảo ý kiến của giáo viên hướng dẫn để đưa ra cấu trúc hợp lý nhất cho đề tài của mình. 
-
-Trước khi viết ĐATN, sinh viên cần đọc kỹ hướng dẫn và quy định chi tiết về cách viết ĐATN trong Phụ lục A. 
-
-Khi đóng quyển ĐATN, sinh viên cần lưu ý tuân thủ hướng dẫn ở phụ lục A.9
-
-SV cần đặc biệt lưu ý cách hành văn. Mỗi đoạn văn không được quá dài và cần có ý tứ rõ ràng, bao gồm duy nhất một ý chính và các ý phân tích bổ trợ để làm rõ hơn ý chính. Các câu văn trong đoạn phải đầy đủ chủ ngữ vị ngữ, cùng hướng đến chủ đề chung. Câu sau phải liên kết với câu trước, đoạn sau liên kết với đoạn trước. Trong văn phong khoa học, sinh viên không được dùng từ trong văn nói, không dùng các từ phóng đại, thái quá, các từ thiếu khách quan, thiên về cảm xúc, về quan điểm cá nhân như “tuyệt vời”, “cực hay”, “cực kỳ hữu ích”, v.v. Các câu văn cần được tối ưu hóa, đảm bảo rất khó để thể thêm hoặc bớt đi được dù chỉ một từ. Cách diễn đạt cần ngắn gọn, súc tích, không dài dòng.
-
-Chương 1 có độ dài từ 3 đến 6 trang với các nội dung sau đây
-
-
+Chapter 1 provides an overview of two key challenges in the field of fashion sketch-to-image translation: the limited availability of large-scale, well-annotated fashion sketch datasets and the high computational demands of existing state-of-the-art generative models. The chapter emphasizes the importance of constructing a comprehensive dataset that not only contains a substantial number of fashion sketches but also incorporates diverse sketch styles, levels of abstraction, and drawing characteristics to better reflect real-world design scenarios. It also reviews recent advances in sketch-to-image translation and motivates the development of lightweight yet effective generative approaches.
 \section{Problem Statement}
-\label{sec:dvd}
-Phần này sinh viên mô tả bài toán cần giải quyết, lý do tại sao lại chọn bài toán đó, ý nghĩa/tầm quan trọng của bài toán.
+\label{sec:problem_statement}
+Fashion sketch-to-image generation has emerged as an important research topic due to its potential to bridge the gap between conceptual fashion design and realistic garment visualization \cite{cheng2021fashion}. In the conventional fashion design workflow, designers often begin with hand-drawn sketches to express their ideas before investing significant time and effort in digital rendering, prototyping, and sample production. The ability to automatically translate sketches into realistic clothing images can accelerate this process, provide rapid visual feedback, and support designers in exploring multiple design alternatives more efficiently. As a result, sketch-to-image generation has attracted increasing attention from both academia and industry as a promising tool for computer-aided fashion design \cite{isola2017image}.
 
-Tiêu đề của chương này có thể để là ``đặt vấn đề'', hoặc lấy chính tên của bài toán mà sinh viên định giải quyết, ví dụ có thể đặt tiêu đề là ``Bài toán dự đoán …” 
+Despite recent advances in generative models \cite{wang2018high}, developing an effective fashion sketch-to-image system remains a challenging task. Fashion sketches exhibit substantial variations in drawing style, abstraction level, line quality, and the amount of visual detail provided by different designers. These variations make it difficult for a model to accurately infer garment structures, textures, colors, and fine-grained fashion attributes from sparse sketch information. Furthermore, the availability of large-scale and diverse fashion sketch datasets remains limited \cite{sangkloy2016sketchy}, restricting the ability of existing models to generalize well across different sketch styles and real-world design scenarios.
 
+Another important challenge lies in the computational complexity of modern image generation models \cite{menghani2023efficient}. While recent state-of-the-art approaches have achieved remarkable visual quality, many of them require substantial computational resources, long training times, and expensive hardware for inference. Such requirements limit their applicability in practical fashion design environments, where fast response time and computational efficiency are often as important as image quality. This limitation is particularly relevant for interactive design systems that aim to provide near real-time feedback during the creative process.
+
+Given these challenges, there is a need for sketch-to-image generation approaches that can effectively handle diverse fashion sketch inputs while maintaining a favorable balance between visual quality and computational efficiency. Therefore, this thesis focuses on the fashion sketch-to-image translation problem and investigates lightweight generative models capable of producing realistic garment images from sketches with reduced computational cost. The proposed research aims to contribute toward practical and accessible computer-aided fashion design systems that can support rapid design iteration and improve workflow efficiency for both professional and novice designers.
 
 \section{Background and Problems of Research} 
-\label{sec:giaiphap}
-Sinh viên trước tiên cần trình bày tổng quan các kết quả của các nghiên cứu hiện nay cho bài toán giới thiệu ở phần \ref{sec:dvd}. Sau đấy, sinh viên đưa ra các hạn chế của các giải pháp hiện tại. 
+\label{sec:background}
+
+\subsection{Review of Existing Approaches}
+To address the fashion sketch-to-image generation problem outlined in Section \ref{sec:problem_statement}, numerous approaches have been proposed, primarily leveraging image-to-image translation frameworks. Foundational models such as Pix2Pix \cite{isola2017image} established the viability of conditional Generative Adversarial Networks (cGANs) for translating edge maps into natural images by relying on strictly paired datasets. To overcome the dependency on paired training data, models like CycleGAN \cite{zhu2017unpaired} were introduced, utilizing cycle-consistency loss to learn domain mappings without requiring one-to-one image correspondences. To further enhance generation diversity, Multimodal Unsupervised Image-to-Image Translation (MUNIT) \cite{huang2018multimodal} was developed, allowing the generation of diverse outputs from a single sketch by disentangling content and style representations. Subsequent research efforts, such as UGATIT \cite{kim2019ugatit}, focused on improving translation quality in tasks with severe geometric deformations by incorporating attention modules.
+
+Further advancing the field, models based on StyleGAN \cite{karras2019style} inversion, such as pixel2style2pixel (pSp) \cite{richardson2021encoding}, have been introduced to directly map sketch inputs into a pre-trained StyleGAN latent space, enabling the generation of highly realistic and controllable images without requiring task-specific architectures. More recently, diffusion models such as Stable Diffusion \cite{rombach2022high} and ControlNet \cite{zhang2023adding} have emerged as a powerful alternative for conditional image synthesis, offering unprecedented generation quality and diversity.
+
+\subsection{Limitations of Current Solutions}
+While recent studies have demonstrated impressive visual realism, several critical limitations restrict their applicability in practical fashion design systems. 
+
+First, the pursuit of higher visual fidelity has led to increasingly complex architectures. State-of-the-art models often contain a massive number of parameters, resulting in substantial inference latency and high memory consumption. This structural complexity fundamentally contradicts the requirements of interactive design environments, where near real-time feedback and deployment on resource-constrained devices are essential. For instance, while pSp can produce highly realistic outputs, it relies on a computationally heavy StyleGAN generator and a complex inversion encoder, leading to significant delays during inference.
+
+Second, existing methodologies often struggle to balance structural preservation with diverse generation. Unpaired models like CycleGAN frequently fail to retain the fine-grained geometric details specified in a fashion sketch. Multimodal frameworks like MUNIT address diversity but often struggle to cleanly disentangle complex fashion attributes, leading to style artifacts or structural inconsistencies. Furthermore, models heavily reliant on attention mechanisms (e.g., UGATIT) incur excessive computational overhead without guaranteeing the accurate rendering of specific fashion attributes. 
+
+Furthermore, current solutions are typically constrained by the lack of optimized datasets; publicly available sketch datasets are often limited in scale or lack the detailed attribute annotations necessary to effectively train and evaluate robust, lightweight generative frameworks.
 
 \section{Research Objectives and Conceptual Framework}
-Trong chương này, sinh viên trước hết trình bày mục tiêu của đồ án là gì, sau đấy sinh viên đề xuất định hướng giải pháp của mình. Tốt nhất là với trình bày từng giải pháp đối với mỗi vấn đề nêu ra trong chương \ref{sec:giaiphap}. 
+\label{sec:objectives}
+To address the aforementioned challenges, this thesis aims to develop a lightweight GAN-based framework for fashion sketch-to-image translation that prioritizes computational efficiency while maintaining stable and high-quality image generation. This direction was selected because GANs offer a favorable balance between visual fidelity and computational cost compared with many recent large-scale generative models, making them suitable for real-time design assistance applications. 
+
+The conceptual framework of this proposed solution consists of two main components. First, a large-scale paired dataset is constructed by leveraging publicly available fashion image datasets, particularly Fashionpedia, and applying edge-based sketch generation techniques to create corresponding sketch representations. The resulting dataset is enriched with comprehensive fashion attribute annotations. Second, a lightweight GAN architecture is designed and optimized to generate realistic fashion images from sketch inputs while significantly reducing model complexity and inference latency.
 
 \section{Contributions}
-Trong phần này sinh viên liệt kê cụ thể, ngắn gọn các đóng góp của đồ án. Ví dụ: 
-
-Đồ án này có 3 đóng góp chính như sau:
-
+\label{sec:contributions}
+The main contributions of this thesis are summarized as follows:
 \begin{enumerate}
-\item Đồ án đề xuất một phương pháp tiền xử lý dữ liệu nhằm loại bỏ nhiễu và dữ liệu ngoại lai trước khi đưa vào huấn luyện mô hình.
-\item \ldots
-\item \ldots 
+    \item The construction of a novel, large-scale dataset containing approximately 40,000 paired sketch-fashion image samples, complete with detailed annotated attributes to facilitate future research.
+    \item The development and implementation of a lightweight GAN-based model capable of generating realistic fashion images from sketches with reduced computational overhead and latency.
+    \item Extensive empirical evaluations demonstrating that the proposed system can support rapid design visualization, laying the foundation for future interactive fashion design applications that require fast generation and iterative editing capabilities.
 \end{enumerate}
 
 \section{Organization of Thesis}
-Phần còn lại của báo cáo đồ án tốt nghiệp này được tổ chức như sau. 
+\label{sec:organization}
+The remainder of this thesis is organized as follows:
 
-Chương 2 trình bày về v.v. 
+Chapter 2 provides a comprehensive literature review on existing sketch-to-image translation models, examining both their strengths and limitations, and presenting the fundamental background knowledge required for this research.
 
-Trong Chương 3, em/tôi giới thiệu về v.v.
+Chapter 3 details the proposed methodology, including the dataset construction process and the architectural design of the lightweight GAN framework.
 
-Chú ý: Sinh viên cần viết mô tả thành đoạn văn đầy đủ về nội dung chương. Tuyệt đối không viết ý hay gạch đầu dòng. Chương 1 không cần mô tả trong phần này. 
+Chapter 4 presents a theoretical analysis of the proposed models, focusing on their computational complexity and the underlying mechanisms that enable efficient image generation.
 
-Ví dụ tham khảo mô tả chương trong phần bố cục đồ án tốt nghiệp: Chương *** trình bày đóng góp chính của đồ án, đó là một nền tảng ABC cho phép khai phá và tích hợp nhiều nguồn dữ liệu, trong đó mỗi nguồn dữ liệu lại có định dạng đặc thù riêng. Nền tảng ABC được phát triển dựa trên khái niệm DEF, là các module ngữ nghĩa trợ giúp người dùng tìm kiếm, tích hợp và hiển thị trực quan dữ liệu theo mô hình cộng tác và mô hình phân tán.  
+Chapter 5 reports the numerical results from extensive experiments. It describes the simulation methods, evaluation metrics, and provides a comparative analysis of the proposed model against several baseline approaches.
 
-Chú ý: Trong phần nội dung chính, mỗi chương của đồ án nên có phần Tổng quan và Kết chương. Hai phần này đều có định dạng văn bản “Normal”, sinh viên không cần tạo định dạng riêng, ví dụ như không in đậm/in nghiêng, không đóng khung, v.v... 
-
-Trong phần Tổng quan của chương N, sinh viên nên có sự liên kết với chương N-1 rồi trình bày sơ qua lý do có mặt của chương N và sự cần thiết của chương này trong đồ án. Sau đó giới thiệu những vấn đề sẽ trình bày trong chương này là gì, trong các đề mục lớn nào.
-
-Ví dụ về phần Tổng quan: Chương 3 đã thảo luận về nguồn gốc ra đời, cơ sở lý thuyết và các nhiệm vụ chính của bài toán tích hợp dữ liệu. Chương 4 này sẽ trình bày chi tiết các công cụ tích hợp dữ liệu theo hướng tiếp cận “mashup”. Với mục đích và phạm vi của đề tài, sáu nhóm công cụ tích hợp dữ liệu chính được trình bày bao gồm: (i) nhóm công cụ ABC trong phần 4.1, (ii) nhóm công cụ DEF trong phần 4.2, nhóm công cụ GHK trong phần 4.3, v.v...
-
-Trong phần Kết chương, sinh viên đưa ra một số kết luận quan trọng của chương. Những vấn đề mở ra trong Tổng quan cần được tóm tắt lại nội dung và cách giải quyết/thực hiện như thế nào. Sinh viên lưu ý không viết Kết chương giống hệt Tổng quan. Sau khi đọc phần Kết chương, người đọc sẽ nắm được sơ bộ nội dung và giải pháp cho các vấn đề đã trình bày trong chương. Trong Kết chương, Sinh viên nên có thêm câu liên kết tới chương tiếp theo.
-
-Ví dụ về phần Kết chương: Chương này đã phân tích chi tiết sáu nhóm công cụ tích hợp dữ liệu. Nhóm công cụ ABC và DEF thích hợp với những bài toán tích hợp dữ liệu phạm vi nhỏ. Trong khi đó, nhóm công cụ GHK lại chứng tỏ thế mạnh của mình với những bài toán cần độ chính xác cao, v.v. Từ kết quả nghiên cứu và phân tích về sáu nhóm công cụ tích hợp dữ liệu này, tôi đã thực hiện phát triển phần mềm tự động bóc tách và tích hợp dữ liệu sử dụng nhóm công cụ GHK. Phần này được trình bày trong chương tiếp theo – Chương 5.
-
-
+Chapter 6 concludes the thesis by summarizing the main findings and discussing potential directions for future research.
 
 \end{document}
