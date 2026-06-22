@@ -329,7 +329,22 @@ canvas {
     width: 100%;
   }
 
-  .preview-toggle {
+    .preview-toggle {
     width: 100%;
   }
+}
+
+.model-selector {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-weight: 500;
+  width: 100%;
+}
+
+.model-selector label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }

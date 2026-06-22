@@ -16,6 +16,7 @@ from basicsr.archs.rrdbnet_arch import RRDBNet
 from realesrgan import RealESRGANer
 
 from .ms2i_model import MS2I, model_cfg
+from .ms2i_model_base import MS2I as MS2I_Base
 from .sketch_fixer_model import load_light_unet_checkpoint
 
 
@@ -134,9 +135,11 @@ class MS2IService:
         fixer_strength: float = 0.7,
         sr_checkpoint_path: str | None = None,
         sr_tile: int = 0,
+        model_type: str = "color",
     ):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.fixer_strength = float(fixer_strength)
+        self.model_type = model_type
         ckpt = torch.load(checkpoint_path, map_location=self.device)
         state = ckpt.get("generator_state_dict", ckpt)
         
@@ -155,7 +158,14 @@ class MS2IService:
         if is_fused:
             generator_cfg["deploy"] = True
 
-        self.model = MS2I(**generator_cfg).to(self.device)
+        if self.model_type == "color":
+            self.model = MS2I(**generator_cfg).to(self.device)
+        else:
+            base_cfg = {
+                k: v for k, v in generator_cfg.items()
+                if k in ["input_shape", "dims", "num_blocks", "num_heads", "bias", "last_act", "deploy"]
+            }
+            self.model = MS2I_Base(**base_cfg).to(self.device)
 
         self.fixer = None
         if fixer_checkpoint_path:
@@ -232,9 +242,9 @@ class MS2IService:
         return Image.merge("RGB", (refined_image, refined_image, refined_image))
 
     @torch.no_grad()
-    def generate(self, sketch: Image.Image, color_label: str, seed: int | None = 7, use_sketch_fixer: bool = True) -> dict[str, bytes]:
+    def generate(self, sketch: Image.Image, color_label: str, seed: int | None = 7, use_sketch_fixer: bool = True, use_sr: bool = True) -> dict[str, bytes]:
         logger.info("--- Starting inference generation ---")
-        logger.info(f"Parameters: color_label='{color_label}', seed={seed}, fixer_strength={self.fixer_strength}, use_sketch_fixer={use_sketch_fixer}")
+        logger.info(f"Parameters: model_type='{self.model_type}', color_label='{color_label}', seed={seed}, fixer_strength={self.fixer_strength}, use_sketch_fixer={use_sketch_fixer}, use_sr={use_sr}")
         
         t0 = time.time()
         refined_sketch = self.refine_sketch(sketch, use_sketch_fixer=use_sketch_fixer)
@@ -242,24 +252,29 @@ class MS2IService:
         logger.info(f"[Timing] Sketch refinement: {t1 - t0:.3f}s")
         
         sketch_tensor = image_to_tensor(refined_sketch).unsqueeze(0).to(self.device)
-        color_tensor = torch.tensor(
-            [color_to_one_hot(color_label)],
-            dtype=torch.float32,
-            device=self.device,
-        )
-
-        # z is set to all zeros during inference to prevent color distortion and match training behavior.
-        # The seed parameter is kept in the signature for compatibility but not used for generating z.
-        z = torch.zeros(1, model_cfg["z_dim"], dtype=torch.float32, device=self.device)
-
+        
         t2 = time.time()
-        fake = self.model(sketch_tensor, color_tensor, z)
+        if self.model_type == "color":
+            color_tensor = torch.tensor(
+                [color_to_one_hot(color_label)],
+                dtype=torch.float32,
+                device=self.device,
+            )
+
+            # z is set to all zeros during inference to prevent color distortion and match training behavior.
+            # The seed parameter is kept in the signature for compatibility but not used for generating z.
+            z = torch.zeros(1, model_cfg["z_dim"], dtype=torch.float32, device=self.device)
+
+            fake = self.model(sketch_tensor, color_tensor, z)
+        else:
+            fake = self.model(sketch_tensor)
+            
         t3 = time.time()
         logger.info(f"[Timing] MS2I generation: {t3 - t2:.3f}s")
 
         generated_image = tensor_to_pil_image(fake[0])
         sr_image = generated_image
-        if self.sr_upsampler is not None:
+        if self.sr_upsampler is not None and use_sr:
             t4 = time.time()
             sr_bgr, _ = self.sr_upsampler.enhance(pil_to_bgr_array(generated_image), outscale=4)
             sr_image = bgr_array_to_pil(sr_bgr)

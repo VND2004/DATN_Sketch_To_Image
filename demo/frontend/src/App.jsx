@@ -26,6 +26,8 @@ export default function App() {
   const [colorLabel, setColorLabel] = useState("White");
   const [seed, setSeed] = useState(7);
   const [useSketchFixer, setUseSketchFixer] = useState(true);
+  const [useSr, setUseSr] = useState(true);
+  const [modelType, setModelType] = useState("color");
   const [refinedSketch, setRefinedSketch] = useState("");
   const [result, setResult] = useState("");
   const [resultRaw, setResultRaw] = useState("");
@@ -146,6 +148,8 @@ export default function App() {
       formData.append("color_label", colorLabel);
       formData.append("seed", String(seed));
       formData.append("use_sketch_fixer", String(useSketchFixer));
+      formData.append("use_sr", String(useSr));
+      formData.append("model_type", modelType);
 
       const response = await fetch(API_URL, {
         method: "POST",
@@ -215,21 +219,34 @@ export default function App() {
       </section>
 
       <section className="controls">
-        <div className="color-grid" role="list" aria-label="Color selection">
-          {COLORS.map((item) => (
-            <button
-              key={item.label}
-              role="listitem"
-              className={"color-button " + (colorLabel === item.label ? "active" : "")}
-              onClick={() => setColorLabel(item.label)}
-              title={item.label}
-              aria-label={item.label}
-              aria-pressed={colorLabel === item.label}
-            >
-              <span className="swatch" style={{ background: item.color }} aria-hidden="true" />
-            </button>
-          ))}
+        <div className="model-selector">
+          <label>
+            <input type="radio" value="color" checked={modelType === "color"} onChange={() => setModelType("color")} />
+            MS2I (Color)
+          </label>
+          <label>
+            <input type="radio" value="base" checked={modelType === "base"} onChange={() => setModelType("base")} />
+            MS2I (Base)
+          </label>
         </div>
+
+        {modelType === "color" && (
+          <div className="color-grid" role="list" aria-label="Color selection">
+            {COLORS.map((item) => (
+              <button
+                key={item.label}
+                role="listitem"
+                className={"color-button " + (colorLabel === item.label ? "active" : "")}
+                onClick={() => setColorLabel(item.label)}
+                title={item.label}
+                aria-label={item.label}
+                aria-pressed={colorLabel === item.label}
+              >
+                <span className="swatch" style={{ background: item.color }} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        )}
 
         <label className="seed">
           Seed
@@ -242,7 +259,16 @@ export default function App() {
             checked={useSketchFixer}
             onChange={(event) => setUseSketchFixer(event.target.checked)}
           />
-          Tiền xử lý nét vẽ
+          Tiền xử lý nét vẽ (Sketch Fixer)
+        </label>
+
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={useSr}
+            onChange={(event) => setUseSr(event.target.checked)}
+          />
+          Hậu xử lý (Super Resolution)
         </label>
 
         <div className="upload-row">
