@@ -268,20 +268,6 @@ canvas {
   box-shadow: 0 0 0 3px rgba(23, 32, 42, 0.12);
 }
 
-.seed {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #405060;
-}
-
-.seed input {
-  width: 92px;
-  height: 38px;
-  border: 1px solid #c7d0da;
-  border-radius: 8px;
-  padding: 0 10px;
-}
 
 .toggle-switch {
   display: inline-flex;

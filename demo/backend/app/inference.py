@@ -273,6 +273,13 @@ class MS2IService:
         logger.info(f"[Timing] MS2I generation: {t3 - t2:.3f}s")
 
         generated_image = tensor_to_pil_image(fake[0])
+        if self.model_type == "base":
+            t_denoise_start = time.time()
+            img_bgr = pil_to_bgr_array(generated_image)
+            denoised_bgr = cv2.fastNlMeansDenoisingColored(img_bgr, None, 10, 10, 7, 21)
+            generated_image = bgr_array_to_pil(denoised_bgr)
+            logger.info(f"[Timing] fastNlMeansDenoisingColored: {time.time() - t_denoise_start:.3f}s")
+
         sr_image = generated_image
         if self.sr_upsampler is not None and use_sr:
             t4 = time.time()
@@ -285,7 +292,7 @@ class MS2IService:
         
         return {
             "refined_sketch": tensor_to_png_bytes(image_to_tensor(refined_sketch)),
-            "generated_image_raw": tensor_to_png_bytes(fake[0]),
+            "generated_image_raw": png_bytes_from_pil(generated_image),
             "generated_image": png_bytes_from_pil(sr_image),
         }
 

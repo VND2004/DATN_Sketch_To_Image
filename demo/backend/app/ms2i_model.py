@@ -608,60 +608,94 @@ class RepConv7(nn.Module):
 class RepAttnConfig:
     dim: int
     num_heads: int = 8
-    block_size: int = 16
-    num_steps: int = 2
-    pad_type: str = "pre"
-    impl: str = "torch"
     deploy: bool = False
 
 class RepAttn(nn.Module):
-    """ Re-parameterizable Attention Block using MonarchAttention as the core attention mechanism."""
-    def __init__(self, dim, num_heads=8, block_size=14, num_steps=1, pad_type="pre", impl="torch", deploy=False):
+    """ 
+    Re-parameterizable Channel Attention Block.
+    Sử dụng PyTorch Native SDPA cho tốc độ tối đa và hỗ trợ SVD Post-Training.
+    """
+    def __init__(self, dim, num_heads=8, deploy=False):
         super().__init__()
+        self.dim = dim
         self.num_heads = num_heads
-        self.qkv = nn.Conv2d(dim, dim * 3, kernel_size=1)
-        self.monarch_attn = MonarchAttention(
-            block_size=block_size,
-            num_steps=num_steps,
-            pad_type=pad_type,
-            impl=impl
-        )
-        # BUG FIX: Luôn sử dụng common_attn (Scaled Dot-Product) giống hệt lúc train.
-        # Không thể tuỳ tiện chuyển sang monarch_attn lúc deploy vì sẽ gây sai lệch nghiêm trọng
-        # feature map (dẫn đến lỗi loang màu).
-        #self.attn_fn = self.monarch_attn if deploy else self.common_attn
-        self.attn_fn = self.common_attn
-        self.proj = nn.Conv2d(dim, dim, kernel_size=1)
         self.deploy = deploy
-
-    def common_attn(self, q, k, v):
-        """ Scaled Dot-Product Attention """
-        scale = (q.shape[-1]) ** -0.5
-        attn = (q @ k.transpose(-2, -1)) * scale
-        attn = attn.softmax(dim=-1)
-        out = attn @ v
-        return out
-
-    @torch.no_grad()
-    def fuse(self):
-        if not self.deploy:
-            # BUG FIX: Xóa bỏ việc gán self.attn_fn = self.monarch_attn
-            # monarch_attn không phải là một phép biển đổi tuyến tính tương đương (re-parameterization)
-            # như RepConv, do đó không thể "fuse" kiểu drop-in replacement được.
-            #self.attn_fn = self.monarch_attn
-            self.deploy = True
+        
+        # 1x1 Convolutions cho QKV và Projection
+        self.qkv = nn.Conv2d(dim, dim * 3, kernel_size=1, bias=True)
+        self.proj = nn.Conv2d(dim, dim, kernel_size=1, bias=True)
 
     def forward(self, x):
         B, C, H, W = x.shape
+        
+        # 1. Linear Projection (Quá trình này tốn nhiều FLOPs nhất)
         qkv = self.qkv(x)
         q, k, v = torch.chunk(qkv, 3, dim=1)
+        
+        # 2. Reshape cho Channel Attention
+        # Chiều Sequence (L) giờ là số kênh mỗi head (C // num_heads)
+        # Chiều Embedding (E) giờ là không gian điểm ảnh (H * W)
         q = rearrange(q, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
         k = rearrange(k, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
         v = rearrange(v, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        attn_out = self.attn_fn(q, k, v)
+        
+        # 3. Tính Attention qua backend C++ của PyTorch (Siêu nhanh, tự động scale)
+        with torch.amp.autocast('cuda', enabled=False):
+            q, k, v = q.float(), k.float(), v.float()
+            # PyTorch SDPA tự động tính q @ k.T và chia cho sqrt(h*w)
+            attn_out = F.scaled_dot_product_attention(q, k, v)
+            
+        # 4. Reshape lại về ảnh và out projection
         attn_out = rearrange(attn_out, 'b head c (h w) -> b (head c) h w', head=self.num_heads, h=H, w=W)
         out = self.proj(attn_out)
-        return out
+        
+        return out.to(x.dtype)
+
+    @torch.no_grad()
+    def fuse(self, keep_ratio=0.6):
+        """
+        Nén mô hình sau khi train (Post-Training Quantization bằng SVD).
+        keep_ratio: Tỷ lệ số kênh K được giữ lại (ví dụ 0.5 nghĩa là nén 50% tính toán).
+        """
+        if self.deploy:
+            print("Model already deployed/fused.")
+            return
+
+        def apply_svd_to_conv(conv_layer, ratio):
+            """Hàm tiện ích để phân rã 1 layer Conv2d thành 2 layer tuần tự."""
+            w = conv_layer.weight.data.squeeze() # shape: (out_C, in_C)
+            out_c, in_c = w.shape
+            
+            # Phân rã SVD
+            U, S, Vh = torch.linalg.svd(w, full_matrices=False)
+            
+            # Tính số kênh trung gian K
+            K = max(1, int(len(S) * ratio))
+            
+            # Cắt tỉa (Truncation)
+            U_k = U[:, :K]            # (out_C, K)
+            S_k = S[:K]               # (K,)
+            Vh_k = Vh[:K, :]          # (K, in_C)
+            
+            # Lớp 1: in_c -> K (Trọng số là S * Vh)
+            conv1 = nn.Conv2d(in_c, K, kernel_size=1, bias=False)
+            w1 = torch.diag(S_k) @ Vh_k
+            conv1.weight.data = w1.view(K, in_c, 1, 1)
+            
+            # Lớp 2: K -> out_c (Trọng số là U)
+            conv2 = nn.Conv2d(K, out_c, kernel_size=1, bias=(conv_layer.bias is not None))
+            conv2.weight.data = U_k.view(out_c, K, 1, 1)
+            if conv_layer.bias is not None:
+                conv2.bias.data = conv_layer.bias.data
+                
+            return nn.Sequential(conv1, conv2)
+
+        # Thay thế các layer gốc bằng các layer đã nén
+        self.qkv = apply_svd_to_conv(self.qkv, ratio=keep_ratio)
+        self.proj = apply_svd_to_conv(self.proj, ratio=keep_ratio)
+        self.deploy = True
+        print(f"[Inference] SVD Fusion completed (keep_ratio={keep_ratio}). qkv & proj splitted.")
+
 
 # # Test RepAttn
 # attn = RepAttn(dim=256, num_heads=8, block_size=14, num_steps=1, pad_type="pre", impl="torch", deploy=False).cuda()
@@ -909,10 +943,6 @@ class MS2I(nn.Module):
         attn_cfg = RepAttnConfig(
             dim=dim,
             num_heads=head,
-            block_size=16,
-            num_steps=2,
-            pad_type="pre",
-            impl="torch",
             deploy=self.deploy,
         )
         ffn_cfg = FFNConfig(dim=dim, expansion_factor=1, deploy=self.deploy)

@@ -24,7 +24,7 @@ export default function App() {
   const [tool, setTool] = useState("brush");
   const [brushSize, setBrushSize] = useState(8);
   const [colorLabel, setColorLabel] = useState("White");
-  const [seed, setSeed] = useState(7);
+  const seed = 7;
   const [useSketchFixer, setUseSketchFixer] = useState(true);
   const [useSr, setUseSr] = useState(true);
   const [modelType, setModelType] = useState("color");
@@ -247,11 +247,6 @@ export default function App() {
             ))}
           </div>
         )}
-
-        <label className="seed">
-          Seed
-          <input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} />
-        </label>
 
         <label className="toggle-switch">
           <input
